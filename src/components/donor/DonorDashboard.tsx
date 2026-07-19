@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import type { Donation } from '../../types';
 import { Heart, Calendar, Droplet } from 'lucide-react';
+import DonorProfileForm from './DonorProfileForm';
 
 const DonorDashboard: React.FC = () => {
     const { profile } = useAuth();
@@ -83,6 +84,9 @@ const DonorDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Profile Metrics Form Section */}
+            <DonorProfileForm onSaveSuccess={fetchDonations} />
 
             {/* Recent Donations */}
             <div className="card">

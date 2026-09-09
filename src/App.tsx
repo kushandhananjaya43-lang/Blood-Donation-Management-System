@@ -2,7 +2,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './components/auth/Login';
 import SignUp from './components/auth/SignUp';
 import DonorDashboard from './components/donor/DonorDashboard';
+import DonorProfileForm from './components/donor/DonorProfileForm';
 import HospitalDashboard from './components/hospital/HospitalDashboard';
+import BloodStock from './components/hospital/BloodStock';
+import BloodRequestForm from './components/hospital/BloodRequestForm';
+import CampaignDashboard from './components/campaign/CampaignDashboard';
+import CreateCampaignForm from './components/campaign/CreateCampaignForm';
+import CampaignList from './components/campaign/CampaignList';
 import DashboardLayout from './components/layout/DashboardLayout';
 
 function App() {
@@ -24,10 +30,58 @@ function App() {
           } 
         />
         <Route 
+          path="/donor/profile" 
+          element={
+            <DashboardLayout userRole="donor">
+              <DonorProfileForm />
+            </DashboardLayout>
+          } 
+        />
+        <Route 
           path="/hospital-dashboard" 
           element={
             <DashboardLayout userRole="hospital">
               <HospitalDashboard />
+            </DashboardLayout>
+          } 
+        />
+        <Route 
+          path="/hospital/stock" 
+          element={
+            <DashboardLayout userRole="hospital">
+              <BloodStock />
+            </DashboardLayout>
+          } 
+        />
+        <Route 
+          path="/hospital/request" 
+          element={
+            <DashboardLayout userRole="hospital">
+              <BloodRequestForm />
+            </DashboardLayout>
+          } 
+        />
+        <Route 
+          path="/campaign-dashboard" 
+          element={
+            <DashboardLayout userRole="campaign">
+              <CampaignDashboard />
+            </DashboardLayout>
+          } 
+        />
+        <Route 
+          path="/campaign/create" 
+          element={
+            <DashboardLayout userRole="campaign">
+              <CreateCampaignForm />
+            </DashboardLayout>
+          } 
+        />
+        <Route 
+          path="/campaigns" 
+          element={
+            <DashboardLayout userRole="donor">
+              <CampaignList />
             </DashboardLayout>
           } 
         />

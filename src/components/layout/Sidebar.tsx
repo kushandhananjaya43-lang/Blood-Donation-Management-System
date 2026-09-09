@@ -1,118 +1,160 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { 
-    LayoutDashboard, 
-    Building2, 
-    User, 
-    LogOut, 
-    Menu, 
-    X, 
-    Droplet 
+  LayoutDashboard, 
+  User, 
+  Database, 
+  FilePlus, 
+  Megaphone, 
+  PlusCircle, 
+  Calendar,
+  LogOut 
 } from 'lucide-react';
 
 interface SidebarProps {
-    // We will make this dynamic later based on real auth roles ('donor' | 'hospital')
-    userRole?: 'donor' | 'hospital';
+  userRole: 'donor' | 'hospital' | 'campaign';
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ userRole = 'donor' }) => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [isOpen, setIsOpen] = useState(false);
+const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
+  return (
+    <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col justify-between p-5 sticky top-0 shrink-0">
+      <div className="space-y-6">
+        {/* Centered & Proportional Brand Header */}
+        <div className="flex flex-col items-center text-center pb-4 border-b border-gray-100">
+          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-2 shadow-sm">
+            <span className="text-xl">🩸</span>
+          </div>
+          <h1 className="text-lg font-bold text-gray-800 tracking-tight">BloodNet</h1>
+          <p className="text-xs text-gray-400 font-medium capitalize mt-0.5">{userRole} Portal</p>
+        </div>
 
-    // Dynamic navigation links based on user role
-    const donorLinks = [
-        { label: 'Donor Dashboard', path: '/donor-dashboard', icon: LayoutDashboard },
-    ];
+        {/* Dynamic Navigation Links */}
+        <nav className="space-y-1">
+          {/* DONOR NAVIGATION */}
+          {userRole === 'donor' && (
+            <>
+              <NavLink
+                to="/donor-dashboard"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </NavLink>
 
-    const hospitalLinks = [
-        { label: 'Hospital Portal', path: '/hospital-dashboard', icon: Building2 },
-    ];
+              <NavLink
+                to="/donor/profile"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <User className="w-4 h-4" />
+                My Profile
+              </NavLink>
 
-    const links = userRole === 'hospital' ? hospitalLinks : donorLinks;
+              <NavLink
+                to="/campaigns"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <Calendar className="w-4 h-4" />
+                Blood Campaigns
+              </NavLink>
+            </>
+          )}
 
-    const handleLogout = () => {
-        // Mock logout for now
-        alert('Logging out...');
-        navigate('/login');
-    };
+          {/* HOSPITAL NAVIGATION */}
+          {userRole === 'hospital' && (
+            <>
+              <NavLink
+                to="/hospital-dashboard"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </NavLink>
 
-    const toggleSidebar = () => setIsOpen(!isOpen);
+              <NavLink
+                to="/hospital/stock"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <Database className="w-4 h-4" />
+                Blood Stock
+              </NavLink>
 
-    return (
-        <>
-            {/* Mobile Header Toggle */}
-            <div className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-50">
-                <div className="flex items-center gap-2 font-bold text-red-600 text-lg">
-                    <Droplet className="fill-current w-5 h-5" />
-                    <span>RedHope</span>
-                </div>
-                <button onClick={toggleSidebar} className="p-1 rounded-md text-gray-600 hover:bg-gray-100">
-                    {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                </button>
-            </div>
+              <NavLink
+                to="/hospital/request"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <FilePlus className="w-4 h-4" />
+                Request Blood
+              </NavLink>
+            </>
+          )}
 
-            {/* Sidebar Desktop Wrapper */}
-            <div className={`
-                fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out flex flex-col justify-between
-                md:translate-x-0 md:sticky md:h-screen
-                ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-            `}>
-                {/* Upper Branding & Navigation Section */}
-                <div>
-                    {/* Header Logo */}
-                    <div className="hidden md:flex items-center gap-2 p-6 font-bold text-red-600 text-xl border-b border-gray-50">
-                        <Droplet className="fill-current w-6 h-6" />
-                        <span>RedHope</span>
-                    </div>
+          {/* CAMPAIGN NAVIGATION */}
+          {userRole === 'campaign' && (
+            <>
+              <NavLink
+                to="/campaign-dashboard"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <Megaphone className="w-4 h-4" />
+                Dashboard
+              </NavLink>
 
-                    {/* Navigation Items */}
-                    <nav className="p-4 space-y-1">
-                        {links.map((link) => {
-                            const Icon = link.icon;
-                            const isActive = location.pathname === link.path;
-                            return (
-                                <button
-                                    key={link.path}
-                                    onClick={() => {
-                                        navigate(link.path);
-                                        setIsOpen(false);
-                                    }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                                        isActive 
-                                            ? 'bg-red-50 text-red-600' 
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                    }`}
-                                >
-                                    <Icon className="w-5 h-5" />
-                                    {link.label}
-                                </button>
-                            );
-                        })}
-                    </nav>
-                </div>
+              <NavLink
+                to="/campaign/create"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <PlusCircle className="w-4 h-4" />
+                Schedule Drive
+              </NavLink>
+            </>
+          )}
+        </nav>
+      </div>
 
-                {/* Footer Controls Section */}
-                <div className="p-4 border-t border-gray-100">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        Sign Out
-                    </button>
-                </div>
-            </div>
-
-            {/* Mobile Overlay Background Drop shadow */}
-            {isOpen && (
-                <div 
-                    onClick={toggleSidebar} 
-                    className="fixed inset-0 bg-black/20 z-30 md:hidden transition-opacity"
-                />
-            )}
-        </>
-    );
+      {/* Logout Link */}
+      <div className="border-t border-gray-100 pt-4">
+        <NavLink
+          to="/login"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </NavLink>
+      </div>
+    </aside>
+  );
 };
 
 export default Sidebar;

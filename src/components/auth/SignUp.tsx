@@ -1,16 +1,27 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, Lock, User, UserPlus, Building2, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, User, UserPlus, Building2, Megaphone, CheckCircle2 } from 'lucide-react';
 
 const SignUp: React.FC = () => {
-    const [accountType, setAccountType] = useState<'donor' | 'hospital'>('donor');
+    const [accountType, setAccountType] = useState<'donor' | 'hospital' | 'campaign'>('donor');
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
+    const navigate = useNavigate();
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log('Sign up:', { accountType, fullName, email, password });
+
+        // Redirect based on selected account type
+        if (accountType === 'donor') {
+            navigate('/donor-dashboard');
+        } else if (accountType === 'hospital') {
+            navigate('/hospital-dashboard');
+        } else if (accountType === 'campaign') {
+            navigate('/campaign-dashboard');
+        }
     };
 
     return (
@@ -31,17 +42,17 @@ const SignUp: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Account Type</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-2">
                             <button
                                 type="button"
                                 onClick={() => setAccountType('donor')}
-                                className={`p-3 border-2 rounded-lg text-center transition ${accountType === 'donor'
+                                className={`p-2.5 border-2 rounded-lg text-center transition ${accountType === 'donor'
                                         ? 'border-red-600 bg-red-50'
                                         : 'border-gray-200 hover:border-red-300'
                                     }`}
                             >
                                 <UserPlus className={`w-5 h-5 mx-auto mb-1 ${accountType === 'donor' ? 'text-red-600' : 'text-gray-400'}`} />
-                                <span className={`text-sm font-medium ${accountType === 'donor' ? 'text-red-600' : 'text-gray-600'}`}>
+                                <span className={`text-xs font-medium block ${accountType === 'donor' ? 'text-red-600' : 'text-gray-600'}`}>
                                     Donor
                                 </span>
                                 {accountType === 'donor' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto mt-1" />}
@@ -50,23 +61,42 @@ const SignUp: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => setAccountType('hospital')}
-                                className={`p-3 border-2 rounded-lg text-center transition ${accountType === 'hospital'
+                                className={`p-2.5 border-2 rounded-lg text-center transition ${accountType === 'hospital'
                                         ? 'border-red-600 bg-red-50'
                                         : 'border-gray-200 hover:border-red-300'
                                     }`}
                             >
                                 <Building2 className={`w-5 h-5 mx-auto mb-1 ${accountType === 'hospital' ? 'text-red-600' : 'text-gray-400'}`} />
-                                <span className={`text-sm font-medium ${accountType === 'hospital' ? 'text-red-600' : 'text-gray-600'}`}>
+                                <span className={`text-xs font-medium block ${accountType === 'hospital' ? 'text-red-600' : 'text-gray-600'}`}>
                                     Hospital
                                 </span>
                                 {accountType === 'hospital' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto mt-1" />}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setAccountType('campaign')}
+                                className={`p-2.5 border-2 rounded-lg text-center transition ${accountType === 'campaign'
+                                        ? 'border-red-600 bg-red-50'
+                                        : 'border-gray-200 hover:border-red-300'
+                                    }`}
+                            >
+                                <Megaphone className={`w-5 h-5 mx-auto mb-1 ${accountType === 'campaign' ? 'text-red-600' : 'text-gray-400'}`} />
+                                <span className={`text-xs font-medium block ${accountType === 'campaign' ? 'text-red-600' : 'text-gray-600'}`}>
+                                    Campaign
+                                </span>
+                                {accountType === 'campaign' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto mt-1" />}
                             </button>
                         </div>
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            {accountType === 'donor' ? 'Full Name' : 'Your Name'}
+                            {accountType === 'donor'
+                                ? 'Full Name'
+                                : accountType === 'hospital'
+                                ? 'Your Name'
+                                : 'Organization / Campaign Name'}
                         </label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -75,7 +105,13 @@ const SignUp: React.FC = () => {
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
-                                placeholder={accountType === 'donor' ? 'John Doe' : 'Dr. Smith'}
+                                placeholder={
+                                    accountType === 'donor'
+                                        ? 'John Doe'
+                                        : accountType === 'hospital'
+                                        ? 'Dr. Smith'
+                                        : 'Red Cross Organization'
+                                }
                                 required
                             />
                         </div>

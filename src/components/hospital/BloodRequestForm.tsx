@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PlusCircle, Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase'; // Ensure this path correctly targets your Supabase client instance
 
 const BloodRequestForm: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -30,19 +31,37 @@ const BloodRequestForm: React.FC = () => {
             return;
         }
 
-        // 2. Simulate network request loading state
         setIsLoading(true);
         try {
-            // Simulating a 1.5-second database roundtrip lag
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            
-            console.log('Submitted Request successfully:', formData);
+            // 2. Fetch authenticated user session
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) {
+                throw new Error('User session not found. Please log in again.');
+            }
+
+            // 3. Insert record into Supabase blood_requests table
+            const { error } = await supabase
+                .from('blood_requests')
+                .insert([
+                    {
+                        hospital_id: user.id,
+                        blood_group: formData.bloodType,
+                        units_required: bags,
+                        urgency: formData.urgency,
+                        status: 'pending',
+                    }
+                ]);
+
+            if (error) throw error;
+
             alert(`Emergency request for ${bags} bags of ${formData.bloodType} registered successfully!`);
             
-            // Reset form on success
+            // Reset form back to initial clean state
             setFormData({ bloodType: '', bagsRequired: '', urgency: 'Normal' });
-        } catch (err) {
-            setErrorMsg('Something went wrong. Please try again.');
+
+        } catch (err: any) {
+            console.error('Error submitting blood request:', err);
+            setErrorMsg(err.message || 'Something went wrong. Please try again.');
         } finally {
             setIsLoading(false);
         }

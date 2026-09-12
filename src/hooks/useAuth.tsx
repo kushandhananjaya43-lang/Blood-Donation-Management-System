@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../types';
@@ -9,31 +9,7 @@ export const useAuth = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchProfile(session.user.id);
-            }
-            setLoading(false);
-        });
-
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchProfile(session.user.id);
-            } else {
-                setProfile(null);
-            }
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-    const fetchProfile = async (userId: string) => {
+    const fetchProfile = useCallback(async (userId: string) => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -43,10 +19,65 @@ export const useAuth = () => {
 
             if (error) throw error;
             setProfile(data);
+            return data;
         } catch (err) {
             console.error('Error fetching profile:', err);
+            return null;
         }
-    };
+    }, []);
+
+    const refreshProfile = useCallback(async () => {
+        if (user?.id) {
+            await fetchProfile(user.id);
+        }
+    }, [user?.id, fetchProfile]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!isMounted) return;
+
+                setUser(session?.user ?? null);
+
+                if (session?.user) {
+                    await fetchProfile(session.user.id);
+                } else {
+                    setProfile(null);
+                }
+            } catch (err) {
+                console.error('Error initializing auth:', err);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        initAuth();
+
+        // Listen for auth state changes (login, logout, token refresh)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (!isMounted) return;
+
+            setUser(session?.user ?? null);
+
+            if (session?.user) {
+                await fetchProfile(session.user.id);
+            } else {
+                setProfile(null);
+            }
+
+            setLoading(false);
+        });
+
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
+    }, [fetchProfile]);
 
     const signUp = async (email: string, password: string, userData: Partial<Profile>) => {
         try {
@@ -61,7 +92,6 @@ export const useAuth = () => {
 
             if (error) throw error;
 
-            // Create profile
             if (data.user) {
                 const { error: profileError } = await supabase
                     .from('profiles')
@@ -73,6 +103,7 @@ export const useAuth = () => {
                     ]);
 
                 if (profileError) throw profileError;
+                await fetchProfile(data.user.id);
             }
 
             return data;
@@ -91,6 +122,9 @@ export const useAuth = () => {
             });
 
             if (error) throw error;
+            if (data.user) {
+                await fetchProfile(data.user.id);
+            }
             return data;
         } catch (err: any) {
             setError(err.message);
@@ -103,6 +137,8 @@ export const useAuth = () => {
             setError(null);
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
+            setUser(null);
+            setProfile(null);
         } catch (err: any) {
             setError(err.message);
             throw err;
@@ -139,5 +175,6 @@ export const useAuth = () => {
         signIn,
         signOut,
         updateProfile,
+        refreshProfile,
     };
 };

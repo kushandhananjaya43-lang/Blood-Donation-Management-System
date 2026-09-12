@@ -1,18 +1,40 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, UserPlus, Building2, Megaphone, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 const SignUp: React.FC = () => {
     const [accountType, setAccountType] = useState<'donor' | 'hospital' | 'campaign'>('donor');
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Sign up:', { accountType, fullName, email, password });
+        setLoading(true);
+        setErrorMsg('');
+
+        // Register user with Supabase Auth & attach metadata
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    role: accountType,
+                },
+            },
+        });
+
+        if (error) {
+            setErrorMsg(error.message);
+            setLoading(false);
+            return;
+        }
 
         // Redirect based on selected account type
         if (accountType === 'donor') {
@@ -38,6 +60,12 @@ const SignUp: React.FC = () => {
                 </div>
 
                 <h2 className="text-xl font-semibold text-gray-800 text-center mb-6">Create an Account</h2>
+
+                {errorMsg && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-medium">
+                        {errorMsg}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
@@ -151,9 +179,10 @@ const SignUp: React.FC = () => {
 
                     <button
                         type="submit"
-                        className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors"
+                        disabled={loading}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
                     >
-                        Create Account
+                        {loading ? 'Creating Account...' : 'Create Account'}
                     </button>
                 </form>
 

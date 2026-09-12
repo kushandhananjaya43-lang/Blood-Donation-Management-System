@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { supabase } from './lib/supabase';
+
 import Login from './components/auth/Login';
 import SignUp from './components/auth/SignUp';
 import DonorDashboard from './components/donor/DonorDashboard';
@@ -12,6 +15,19 @@ import CampaignList from './components/campaign/CampaignList';
 import DashboardLayout from './components/layout/DashboardLayout';
 
 function App() {
+  useEffect(() => {
+    const checkConnection = async () => {
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (error) {
+        console.error('Supabase connection error:', error.message);
+      } else {
+        console.log('Successfully connected to Supabase! Profiles:', data);
+      }
+    };
+
+    checkConnection();
+  }, []);
+
   return (
     <Router>
       <Routes>

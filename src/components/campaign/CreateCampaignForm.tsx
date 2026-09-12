@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, Target, Building2, PlusCircle } from 'lucide-react';
+import { Calendar, MapPin, Target, Building2, PlusCircle, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase'; // Ensure this relative path matches your supabase client location
 
 const CreateCampaignForm: React.FC = () => {
   const [title, setTitle] = useState('');
@@ -7,11 +8,50 @@ const CreateCampaignForm: React.FC = () => {
   const [date, setDate] = useState('');
   const [targetUnits, setTargetUnits] = useState('');
   const [hospital, setHospital] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ title, location, date, targetUnits, hospital });
-    alert('Campaign scheduled successfully!');
+    setLoading(true);
+
+    try {
+      // 1. Fetch current authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('User session not found. Please log in again.');
+      }
+
+      // 2. Insert into campaign_drives table matching schema columns
+      const { error } = await supabase
+        .from('campaign_drives')
+        .insert([
+          {
+            organizer_id: user.id,
+            title: title,
+            location: location,
+            drive_date: date,
+            target_donations: parseInt(targetUnits, 10),
+          }
+        ]);
+
+      if (error) throw error;
+
+      alert('Campaign scheduled successfully!');
+
+      // 3. Clear all input fields back to empty state
+      setTitle('');
+      setLocation('');
+      setDate('');
+      setTargetUnits('');
+      setHospital('');
+
+    } catch (error: any) {
+      console.error('Error saving campaign:', error);
+      alert(`Failed to schedule campaign: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,10 +72,11 @@ const CreateCampaignForm: React.FC = () => {
           <input
             type="text"
             required
+            disabled={loading}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Annual Community Blood Drive"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-50"
           />
         </div>
 
@@ -46,10 +87,11 @@ const CreateCampaignForm: React.FC = () => {
             <input
               type="text"
               required
+              disabled={loading}
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Central Community Center Hall"
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-50"
             />
           </div>
         </div>
@@ -62,9 +104,10 @@ const CreateCampaignForm: React.FC = () => {
               <input
                 type="date"
                 required
+                disabled={loading}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-50"
               />
             </div>
           </div>
@@ -76,10 +119,11 @@ const CreateCampaignForm: React.FC = () => {
               <input
                 type="number"
                 required
+                disabled={loading}
                 value={targetUnits}
                 onChange={(e) => setTargetUnits(e.target.value)}
                 placeholder="e.g. 100"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-50"
               />
             </div>
           </div>
@@ -91,9 +135,10 @@ const CreateCampaignForm: React.FC = () => {
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <select
               required
+              disabled={loading}
               value={hospital}
               onChange={(e) => setHospital(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500 bg-white"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500 bg-white disabled:bg-gray-50"
             >
               <option value="">Select a partner hospital to receive blood</option>
               <option value="city-general">City General Hospital</option>
@@ -105,9 +150,17 @@ const CreateCampaignForm: React.FC = () => {
 
         <button
           type="submit"
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-lg transition-colors mt-4"
+          disabled={loading}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-lg transition-colors mt-4 flex items-center justify-center gap-2 disabled:bg-red-400"
         >
-          Publish Campaign Drive
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Publishing Campaign...</span>
+            </>
+          ) : (
+            <span>Publish Campaign Drive</span>
+          )}
         </button>
       </form>
     </div>

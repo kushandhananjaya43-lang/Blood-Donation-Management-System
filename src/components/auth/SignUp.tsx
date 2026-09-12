@@ -194,7 +194,7 @@ const SignUp: React.FC = () => {
                 </p>
 
                 <p className="text-center text-xs text-gray-400 mt-8 pt-4 border-t border-gray-100">
-                    Made with ❤️ by Blood Donation Network
+                    Made by Blood Donation Network
                 </p>
             </div>
         </div>

@@ -10,8 +10,18 @@ const CreateCampaignForm: React.FC = () => {
   const [hospital, setHospital] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Get current date string formatted as YYYY-MM-DD for date input minimum constraint
+  const today = new Date().toISOString().split('T')[0];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent submitting past dates
+    if (date < today) {
+      alert('Campaign date cannot be in the past. Please select today or a future date.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -104,6 +114,7 @@ const CreateCampaignForm: React.FC = () => {
               <input
                 type="date"
                 required
+                min={today}
                 disabled={loading}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}

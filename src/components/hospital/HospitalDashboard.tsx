@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BloodStock from './BloodStock';
-import { Building2, PlusCircle, Package, Clock, AlertTriangle } from 'lucide-react';
-import { supabase } from '../../lib/supabase'; // Adjust relative path as needed
+import { Building2, PlusCircle, Package, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 const HospitalDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [recentRequests, setRecentRequests] = useState<any[]>([]);
     const [loadingRequests, setLoadingRequests] = useState(true);
+    const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const [stats, setStats] = useState({
         inventoryStatus: 'Active Monitoring',
         criticalShortages: 'None',
@@ -16,6 +17,12 @@ const HospitalDashboard: React.FC = () => {
 
     useEffect(() => {
         fetchDashboardData();
+
+        const handleStockUpdate = () => {
+            fetchDashboardData();
+        };
+        window.addEventListener('stockUpdated', handleStockUpdate);
+        return () => window.removeEventListener('stockUpdated', handleStockUpdate);
     }, []);
 
     const fetchDashboardData = async () => {
@@ -24,31 +31,41 @@ const HospitalDashboard: React.FC = () => {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                // 1. Fetch live requests for the logged-in hospital
+                // Fetch only requests that are NOT fulfilled
                 const { data: requests, error } = await supabase
                     .from('blood_requests')
                     .select('*')
                     .eq('hospital_id', user.id)
+                    .neq('status', 'fulfilled')
                     .order('created_at', { ascending: false });
 
                 if (!error && requests) {
-                    setRecentRequests(requests.slice(0, 5)); // Get last 5 for display
-
-                    // 2. Dynamically calculate shortage alerts based on pending critical requests
-                    const criticalTypes = Array.from(
-                        new Set(
-                            requests
-                                .filter((r) => r.urgency === 'Critical' || r.urgency === 'Urgent')
-                                .map((r) => r.blood_group)
-                        )
-                    );
-
-                    setStats({
-                        inventoryStatus: requests.length > 0 ? 'Active Monitoring' : 'Optimal',
-                        criticalShortages: criticalTypes.length > 0 ? criticalTypes.join(' / ') : 'None',
-                        requestCount: requests.length,
-                    });
+                    setRecentRequests(requests);
+                    setStats(prev => ({ ...prev, requestCount: requests.length }));
                 }
+
+                // Fetch live stock levels
+                const { data: stockData } = await supabase
+                    .from('hospital_stock')
+                    .select('*')
+                    .eq('hospital_id', user.id);
+
+                const allTypes = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
+                const criticalShortageList: string[] = [];
+
+                allTypes.forEach(type => {
+                    const found = stockData?.find(d => d.blood_type === type);
+                    const qty = found ? found.quantity_bags : 0;
+                    if (qty < 10) {
+                        criticalShortageList.push(type);
+                    }
+                });
+
+                setStats(prev => ({
+                    ...prev,
+                    inventoryStatus: criticalShortageList.length > 0 ? 'Active Monitoring' : 'Optimal',
+                    criticalShortages: criticalShortageList.length > 0 ? criticalShortageList.join(' / ') : 'None',
+                }));
             }
         } catch (err) {
             console.error('Error fetching dashboard data:', err);
@@ -57,9 +74,76 @@ const HospitalDashboard: React.FC = () => {
         }
     };
 
+    const handleMarkReceived = async (req: any) => {
+        const confirmed = window.confirm(
+            `Confirm receipt of ${req.units_required} bags of ${req.blood_group}? This will fulfill the request and add them directly to your inventory.`
+        );
+
+        if (!confirmed) return;
+
+        setActionLoadingId(req.id);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("No authenticated user found.");
+
+            // 1. Explicitly update status to 'fulfilled'
+            const { data: updateData, error: updateError } = await supabase
+                .from('blood_requests')
+                .update({ status: 'fulfilled' })
+                .eq('id', req.id)
+                .select();
+
+            if (updateError) {
+                console.error("Supabase update error details:", updateError);
+                throw new Error(updateError.message);
+            }
+
+            if (!updateData || updateData.length === 0) {
+                throw new Error("Update failed. Row was not modified. Check your Supabase RLS policies for UPDATE operations on 'blood_requests'.");
+            }
+
+            // 2. Fetch current inventory quantity for this specific blood group
+            const { data: existingStock } = await supabase
+                .from('hospital_stock')
+                .select('quantity_bags')
+                .eq('hospital_id', user.id)
+                .eq('blood_type', req.blood_group)
+                .maybeSingle();
+
+            const currentBags = existingStock ? existingStock.quantity_bags : 0;
+            const unitsToAdd = Number(req.units_required || 0);
+            const newTotalBags = currentBags + unitsToAdd;
+
+            // 3. Upsert the updated sum back into hospital_stock
+            const { error: stockError } = await supabase
+                .from('hospital_stock')
+                .upsert({
+                    hospital_id: user.id,
+                    blood_type: req.blood_group,
+                    quantity_bags: newTotalBags,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'hospital_id,blood_type' });
+
+            if (stockError) throw stockError;
+
+            // 4. Instantly filter out from local UI state
+            setRecentRequests(prev => prev.filter(item => item.id !== req.id));
+            setStats(prev => ({ ...prev, requestCount: Math.max(0, prev.requestCount - 1) }));
+
+            // 5. Trigger global event so BloodStock table re-fetches and updates inventory numbers instantly
+            window.dispatchEvent(new Event('stockUpdated'));
+
+            alert(`Successfully added ${unitsToAdd} bags of ${req.blood_group} to your inventory!`);
+        } catch (err: any) {
+            console.error('Error marking request as received:', err);
+            alert('Failed to process receipt: ' + (err.message || 'Unknown error'));
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            {/* Header with Quick Navigation */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
                 <div className="flex items-center gap-3">
                     <Building2 className="w-8 h-8 text-red-600 shrink-0" />
@@ -77,7 +161,6 @@ const HospitalDashboard: React.FC = () => {
                 </button>
             </div>
 
-            {/* Dynamic KPI Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
                     <div className="p-3 bg-red-50 text-red-600 rounded-lg">
@@ -112,20 +195,17 @@ const HospitalDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left side: Blood Inventory */}
                 <div className="lg:col-span-2">
                     <BloodStock />
                 </div>
                 
-                {/* Right side: Live Recent Outgoing Requests Summary */}
                 <div className="lg:col-span-1 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
                     <div>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                                 <Clock className="w-5 h-5 text-red-600" />
-                                Recent Requests
+                                Pending Requests
                             </h3>
                             <button
                                 onClick={() => navigate('/hospital/request')}
@@ -138,25 +218,36 @@ const HospitalDashboard: React.FC = () => {
                         {loadingRequests ? (
                             <p className="text-sm text-gray-400 py-4 text-center">Loading requests...</p>
                         ) : recentRequests.length > 0 ? (
-                            <div className="space-y-3">
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                                 {recentRequests.map((req) => (
-                                    <div key={req.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between border border-gray-100">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-gray-800">{req.blood_group}</span>
-                                                <span className="text-xs text-gray-500">({req.units_required} bags)</span>
+                                    <div key={req.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-gray-800 text-base">{req.blood_group}</span>
+                                                    <span className="text-xs text-gray-500 font-medium">({req.units_required} bags)</span>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-0.5 capitalize">{req.urgency} urgency</p>
                                             </div>
-                                            <p className="text-xs text-gray-400 mt-0.5">{req.urgency} urgency</p>
+                                            <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-200 capitalize">
+                                                {req.status || 'pending'}
+                                            </span>
                                         </div>
-                                        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-200 capitalize">
-                                            {req.status || 'pending'}
-                                        </span>
+
+                                        <button
+                                            onClick={() => handleMarkReceived(req)}
+                                            disabled={actionLoadingId === req.id}
+                                            className="w-full mt-1 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                                        >
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                            <span>{actionLoadingId === req.id ? 'Processing...' : 'Mark as Received'}</span>
+                                        </button>
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <div className="text-center py-8 text-gray-400 text-sm">
-                                No emergency requests submitted yet.
+                                No pending emergency requests.
                             </div>
                         )}
                     </div>

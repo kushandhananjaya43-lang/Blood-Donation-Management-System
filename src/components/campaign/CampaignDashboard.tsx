@@ -20,16 +20,21 @@ const CampaignDashboard: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+        // Get today's date formatted as YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
+
+        // Fetch only upcoming/current campaign drives
         const { data, error } = await supabase
           .from('campaign_drives')
           .select('*')
           .eq('organizer_id', user.id)
+          .gte('drive_date', today)
           .order('drive_date', { ascending: true });
 
         if (!error && data) {
           setDrives(data);
 
-          // Calculate totals based on exact table columns
+          // Calculate summary stats strictly for upcoming drives
           const totalDrives = data.length;
           const targetUnitsSum = data.reduce((sum, item) => sum + Number(item.target_donations || 0), 0);
 
@@ -108,7 +113,7 @@ const CampaignDashboard: React.FC = () => {
                 ) : (
                   <tr>
                     <td colSpan={5} className="py-6 text-center text-gray-400">
-                      No campaign drives found. Schedule one to get started!
+                      No upcoming campaign drives found. Schedule one to get started!
                     </td>
                   </tr>
                 )}

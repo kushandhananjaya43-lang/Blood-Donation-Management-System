@@ -19,7 +19,7 @@ const SignUp: React.FC = () => {
         setErrorMsg('');
 
         // Register user with Supabase Auth & attach metadata
-        const {_data, error } = await supabase.auth.signUp({
+        const {data : _data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {

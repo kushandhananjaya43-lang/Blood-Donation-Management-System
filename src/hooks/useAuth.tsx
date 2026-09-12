@@ -59,7 +59,7 @@ export const useAuth = () => {
         initAuth();
 
         // Listen for auth state changes (login, logout, token refresh)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (!isMounted) return;
 
             setUser(session?.user ?? null);

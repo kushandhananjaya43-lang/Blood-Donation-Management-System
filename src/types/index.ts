@@ -1,9 +1,14 @@
 export interface Profile {
     id: string;
     full_name: string;
+    email?: string;
+    role?: string;
     blood_type?: string;
+    blood_group?: string;
     date_of_birth?: string;
     phone_number?: string;
+    phone?: string;
+    location?: string;
     address?: string;
     city?: string;
     state?: string;
